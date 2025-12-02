@@ -75,28 +75,29 @@ async function run() {
 
     // ===========
     // Admin verify token
-    const verifyAdmin=async(req,res,next)=>{
-      const email=req.decode_email;
-      const filter={email}
-      const user=await usersCollection.findOne(filter)
-      if(!user || user.role!=='admin'){
-        return res.status(403).send({message: 'Forbidden access'})
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decode_email;
+      const filter = { email };
+      const user = await usersCollection.findOne(filter);
+      if (!user || user.role !== "admin") {
+        return res.status(403).send({ message: "Forbidden access" });
       }
-      next()
-    }
+      next();
+    };
 
     // ============
     // Riders api
     // ===============
     // app.pa
     // This is for approve or reject rides
-    app.patch("/riders/:id",verifyFBtoken,verifyAdmin, async (req, res) => {
+    app.patch("/riders/:id", verifyFBtoken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const status = req.body.status;
       const query = { _id: new ObjectId(id) };
       const update = {
         $set: {
           status: status,
+          workStatus:'available'
         },
       };
       const result = await ridersCollection.updateOne(query, update);
@@ -122,8 +123,16 @@ async function run() {
 
     app.get("/riders", async (req, res) => {
       const query = {};
+      const{status,district,workStatus}=req.query
       if (req.query.status) {
-        query.status = req.query.status;
+        query.status = status;
+      }
+      if(district){
+        query.district=district
+      }
+      if(workStatus){
+
+        query.workStatus=workStatus
       }
       const result = await ridersCollection.find(query).toArray();
       res.send(result);
@@ -149,7 +158,7 @@ async function run() {
       res.send(result);
     });
     // This api is for make admin
-    app.patch("/user/:id",verifyFBtoken,verifyAdmin ,async (req, res) => {
+    app.patch("/user/:id", verifyFBtoken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const userInfo = req.body;
       const filter = { _id: new ObjectId(id) };
@@ -162,11 +171,11 @@ async function run() {
       res.send(result);
     });
     // THis for see my parcels
-    app.get("/users/:email/role",verifyFBtoken, async (req, res) => {
+    app.get("/users/:email/role", verifyFBtoken, async (req, res) => {
       const email = req.params.email;
       const filter = { email };
-      const result = await usersCollection.findOne(filter)
-      res.send({role: result?.role || 'user'})
+      const result = await usersCollection.findOne(filter);
+      res.send({ role: result?.role || "user" });
     });
 
     // ===========================
@@ -225,6 +234,7 @@ async function run() {
             $set: {
               paymentStatus: "Paid",
               trackingId: trackingId,
+              deliveryStatus: "pending-pickup",
             },
           };
 
@@ -301,9 +311,15 @@ async function run() {
       const result = await parcelsCollection.insertOne(parcel);
       res.send(result);
     });
+    // app.get('/parcels/')
 
     app.get("/parcels", async (req, res) => {
       const query = {};
+      console.log(req.query);
+      const { deliveryStatus } = req.query;
+      if (deliveryStatus) {
+        query.deliveryStatus = deliveryStatus;
+      }
       const { email } = req.query;
 
       if (email) query.senderEmail = email;
