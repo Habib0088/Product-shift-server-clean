@@ -304,7 +304,29 @@ async function run() {
     // =====================
     // CRUD: PARCELS
     // =====================
-
+    app.patch('/parcels/:id',async(req,res)=>{
+      const{parcelId,riderId,riderName,riderEmail}=req.body
+      console.log(req.query);
+      
+      const filter={_id: new ObjectId(parcelId)}
+      const updateDoc={
+        $set:{
+          deliveryStatus:'delivery-assigned',
+          riderId:riderId,
+          riderName:riderName,
+          riderEmail:riderEmail
+        }
+      }
+      const result=await parcelsCollection.updateOne(filter,updateDoc)
+    const filterRider={_id: new ObjectId(riderId)}
+    const updateRiderDoc={
+      $set:{
+        workStatus:'in_delivery'
+      }
+    }
+    const riderResult=await ridersCollection.updateOne(filterRider,updateRiderDoc)
+res.send(riderResult)
+    })
     app.post("/parcels", async (req, res) => {
       const parcel = req.body;
       parcel.createdAt = new Date();
@@ -315,7 +337,7 @@ async function run() {
 
     app.get("/parcels", async (req, res) => {
       const query = {};
-      console.log(req.query);
+ 
       const { deliveryStatus } = req.query;
       if (deliveryStatus) {
         query.deliveryStatus = deliveryStatus;
