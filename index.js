@@ -124,7 +124,7 @@ async function run() {
     app.get("/riders", async (req, res) => {
       const query = {};
       const{status,district,workStatus}=req.query
-      if (req.query.status) {
+      if (status) {
         query.status = status;
       }
       if(district){
