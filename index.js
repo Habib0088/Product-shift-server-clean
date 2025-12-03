@@ -89,10 +89,18 @@ async function run() {
     // Riders api
     // ===============
     // app.pa
-    // This is for approve or reject rides
+ 
+    app.delete('/riders/:id',async(req,res)=>{
+      const filter={_id:new ObjectId(req.params.id)}
+      const result=await ridersCollection.deleteOne(filter)
+      res.send(result)
+    })
+       // This is for approve or reject rides
     app.patch("/riders/:id", verifyFBtoken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const status = req.body.status;
+      
+      
       const query = { _id: new ObjectId(id) };
       const update = {
         $set: {
@@ -103,6 +111,7 @@ async function run() {
       const result = await ridersCollection.updateOne(query, update);
       if (status === "approved") {
         const email = req.body.email;
+        console.log(email);
         const query = { email };
         const updateUser = {
           $set: {
@@ -110,11 +119,14 @@ async function run() {
           },
         };
         const userResult = await usersCollection.updateOne(query, updateUser);
+        res.send(userResult);
       }
-      res.send(result);
+      
     });
     app.post("/riders", async (req, res) => {
       const riders = req.body;
+      console.log(riders);
+      
       riders.status = "pending";
       riders.createdAt = new Date();
       const result = await ridersCollection.insertOne(riders);
@@ -303,6 +315,17 @@ async function run() {
     // =====================
     // CRUD: PARCELS
     // =====================
+    app.patch('/parcels/:id/status',async(req,res)=>{
+      const filter={_id: new ObjectId(req.params.id)}
+      const {deliveryStatus}=req.body
+      const updateDoc={
+        $set:{
+          deliveryStatus:deliveryStatus
+        }
+      }
+      const result=await parcelsCollection.updateOne(filter,updateDoc)
+      res.send(result)
+    })
     app.patch("/parcels/:id", async (req, res) => {
       const { parcelId, riderId, riderName, riderEmail } = req.body;
       console.log(req.query);
@@ -362,7 +385,7 @@ async function run() {
         query.riderEmail=riderEmail
       }
       if(deliveryStatus){
-        query.deliveryStatus=deliveryStatus
+        query.deliveryStatus={$nin:['delivered']}
       }
       const result=await parcelsCollection.find(query).toArray()
       res.send(result)
