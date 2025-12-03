@@ -89,18 +89,17 @@ async function run() {
     // Riders api
     // ===============
     // app.pa
- 
-    app.delete('/riders/:id',async(req,res)=>{
-      const filter={_id:new ObjectId(req.params.id)}
-      const result=await ridersCollection.deleteOne(filter)
-      res.send(result)
-    })
-       // This is for approve or reject rides
+
+    app.delete("/riders/:id", async (req, res) => {
+      const filter = { _id: new ObjectId(req.params.id) };
+      const result = await ridersCollection.deleteOne(filter);
+      res.send(result);
+    });
+    // This is for approve or reject rides
     app.patch("/riders/:id", verifyFBtoken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const status = req.body.status;
-      
-      
+
       const query = { _id: new ObjectId(id) };
       const update = {
         $set: {
@@ -121,12 +120,11 @@ async function run() {
         const userResult = await usersCollection.updateOne(query, updateUser);
         res.send(userResult);
       }
-      
     });
     app.post("/riders", async (req, res) => {
       const riders = req.body;
       console.log(riders);
-      
+
       riders.status = "pending";
       riders.createdAt = new Date();
       const result = await ridersCollection.insertOne(riders);
@@ -315,17 +313,41 @@ async function run() {
     // =====================
     // CRUD: PARCELS
     // =====================
-    app.patch('/parcels/:id/status',async(req,res)=>{
-      const filter={_id: new ObjectId(req.params.id)}
-      const {deliveryStatus}=req.body
-      const updateDoc={
-        $set:{
-          deliveryStatus:deliveryStatus
-        }
+    app.get("/parcelsDelivered", async (req, res) => {
+      const { email, deliveryStatus } = req.query;
+      console.log(email, deliveryStatus);
+
+      const query = {
+        deliveryStatus: deliveryStatus,
+        riderEmail: email,
+      };
+      const result = await parcelsCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.patch("/parcels/:id/status", async (req, res) => {
+      const filter = { _id: new ObjectId(req.params.id) };
+      const { deliveryStatus, riderId } = req.body;
+      const updateDoc = {
+        $set: {
+          deliveryStatus: deliveryStatus,
+        },
+      };
+      const result = await parcelsCollection.updateOne(filter, updateDoc);
+      if (deliveryStatus === "delivered") {
+        const query = { _id: new ObjectId(riderId) };
+        const updateDoc = {
+          $set: {
+            workStatus: "available",
+          },
+        };
+        const riderWorkStatusUpdate = await ridersCollection.updateOne(
+          query,
+          updateDoc
+        );
+        res.send(riderWorkStatusUpdate);
       }
-      const result=await parcelsCollection.updateOne(filter,updateDoc)
-      res.send(result)
-    })
+      res.send(result);
+    });
     app.patch("/parcels/:id", async (req, res) => {
       const { parcelId, riderId, riderName, riderEmail } = req.body;
       console.log(req.query);
@@ -380,15 +402,18 @@ async function run() {
     });
     app.get("/parcels/rider", async (req, res) => {
       const { riderEmail, deliveryStatus } = req.query;
-      const query={}
-      if(riderEmail){
-        query.riderEmail=riderEmail
+      const query = {};
+      if (riderEmail) {
+        query.riderEmail = riderEmail;
       }
-      if(deliveryStatus){
-        query.deliveryStatus={$nin:['delivered']}
+      if (deliveryStatus) {
+        query.deliveryStatus = { $nin: ["delivered"] };
       }
-      const result=await parcelsCollection.find(query).toArray()
-      res.send(result)
+      if (deliveryStatus) {
+        const result = await parcelsCollection.find(query).toArray();
+      }
+
+      res.send(result);
     });
     app.get("/parcels/:id", async (req, res) => {
       const id = req.params.id;
