@@ -525,6 +525,14 @@ async function run() {
       });
       res.send(result);
     });
+
+    // Tracking realted api
+    app.get('/trackings/:trackingId',async(req,res)=>{
+      const trackingId=req.params.trackingId
+      const filter={trackingId}
+      const result=await trackingCollection.find(filter).toArray()
+      res.send(result)
+    })
   } finally {
     // Do not close client if using continuous server
   }
