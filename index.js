@@ -305,76 +305,179 @@ async function run() {
     //     res.status(500).send({ error: "Payment processing failed" });
     //   }
     // });
-    app.patch("/payment-success", async (req, res) => {
-      const sessionId = req.query.session_id;
+    // app.patch("/payment-success", async (req, res) => {
+    //   const sessionId = req.query.session_id;
 
-      try {
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
+    //   try {
+    //     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-        if (session.payment_status !== "paid") {
-          return res.status(400).send({ error: "Payment not completed" });
-        }
+    //     if (session.payment_status !== "paid") {
+    //       return res.status(400).send({ error: "Payment not completed" });
+    //     }
 
-        const parcelId = session.metadata.parcelId;
+    //     const parcelId = session.metadata.parcelId;
 
-        // ✅ Generate trackingId only once
-        const trackingId = generateTrackingIdSecure();
+    //     // ✅ Generate trackingId only once
+    //     const trackingId = generateTrackingIdSecure();
 
-        // Check if payment already exists
-        const transactionId = session.payment_intent;
-        const paymentExist = await paymentCollection.findOne({ transactionId });
-        if (paymentExist) {
-          return res.send({
-            message: "Payment already exists",
-            trackingId: paymentExist.trackingId,
-          });
-        }
+    //     // Check if payment already exists
+    //     const transactionId = session.payment_intent;
+    //     const paymentExist = await paymentCollection.findOne({ transactionId });
+    //     if (paymentExist) {
+    //       return res.send({
+    //         message: "Payment already exists",
+    //         trackingId: paymentExist.trackingId,
+    //       });
+    //     }
 
-        // Log tracking once
-        await trackingCollection.insertOne({
-          status: "pending-pickup",
-          trackingId,
-          details: "pending pickup",
-          createdAt: new Date(),
-          parcelId,
-        });
+    //     // Log tracking once
+    //     await trackingCollection.insertOne({
+    //       status: "pending-pickup",
+    //       trackingId,
+    //       details: "pending pickup",
+    //       createdAt: new Date(),
+    //       parcelId,
+    //     });
 
-        // Update parcel with trackingId and paymentStatus
-        await parcelsCollection.updateOne(
-          { _id: new ObjectId(parcelId) },
-          {
-            $set: {
-              paymentStatus: "Paid",
-              trackingId,
-              deliveryStatus: "pending-pickup",
-            },
-          }
-        );
+    //     // Update parcel with trackingId and paymentStatus
+    //     await parcelsCollection.updateOne(
+    //       { _id: new ObjectId(parcelId) },
+    //       {
+    //         $set: {
+    //           paymentStatus: "Paid",
+    //           trackingId,
+    //           deliveryStatus: "pending-pickup",
+    //         },
+    //       }
+    //     );
 
-        // Save payment record
-        const paymentRecord = {
-          amount: session.amount_total / 100,
-          transactionId: session.payment_intent,
-          currency: session.currency,
-          customerEmail: session.customer_email,
-          parcelName: session.metadata.parcelName,
-          paymentStatus: session.payment_status,
-          paidAt: new Date(),
-          trackingId,
-        };
+    //     // Save payment record
+    //     const paymentRecord = {
+    //       amount: session.amount_total / 100,
+    //       transactionId: session.payment_intent,
+    //       currency: session.currency,
+    //       customerEmail: session.customer_email,
+    //       parcelName: session.metadata.parcelName,
+    //       paymentStatus: session.payment_status,
+    //       paidAt: new Date(),
+    //       trackingId,
+    //     };
 
-        await paymentCollection.insertOne(paymentRecord);
+    //     await paymentCollection.insertOne(paymentRecord);
 
-        res.send({
-          success: true,
-          trackingId,
-          paymentRecord,
-        });
-      } catch (err) {
-        console.log(err);
-        res.status(500).send({ error: "Payment processing failed" });
-      }
+    //     res.send({
+    //       success: true,
+    //       trackingId,
+    //       paymentRecord,
+    //     });
+    //   } catch (err) {
+    //     console.log(err);
+    //     res.status(500).send({ error: "Payment processing failed" });
+    //   }
+    // });
+    // =========================
+// PAYMENT SUCCESS (CLEAN)
+// =========================
+
+// app.patch("/payment-success", async (req, res) => {
+  app.patch('/payment-success',async(req,res)=>{
+    
+ 
+  const sessionId = req.query.session_id;
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== "paid") {
+      return res.status(400).send({ error: "Payment not completed" });
+    }
+
+    const parcelId = session.metadata.parcelId;
+
+    // ================================
+    // 1️⃣ FIND THE PARCEL FIRST
+    // ================================
+    const parcel = await parcelsCollection.findOne({
+      _id: new ObjectId(parcelId),
     });
+
+    if (!parcel) {
+      return res.status(404).send({ error: "Parcel not found" });
+    }
+
+    // ==================================
+    // 2️⃣ USE EXISTING TRACKING ID
+    // ==================================
+    let trackingId = parcel.trackingId;
+
+    // If trackingId doesn't exist → generate once
+    if (!trackingId) {
+      trackingId = generateTrackingIdSecure();
+
+      await parcelsCollection.updateOne(
+        { _id: new ObjectId(parcelId) },
+        { $set: { trackingId } }
+      );
+    }
+
+    // ==================================
+    // 3️⃣ CHECK IF PAYMENT ALREADY EXISTS
+    // ==================================
+    const transactionId = session.payment_intent;
+    const existingPayment = await paymentCollection.findOne({ transactionId });
+
+    if (existingPayment) {
+      return res.send({
+        message: "Payment already exists",
+        trackingId,
+      });
+    }
+
+    // ==================================
+    // 4️⃣ CALL logTracking WITH EXISTING ID
+    // ==================================
+    await logTracking(trackingId, "payment successful");
+
+    // ==================================
+    // 5️⃣ UPDATE PARCEL PAYMENT STATUS
+    // ==================================
+    await parcelsCollection.updateOne(
+      { _id: new ObjectId(parcelId) },
+      {
+        $set: {
+          paymentStatus: "Paid",
+          deliveryStatus: "pending-pickup",
+        },
+      }
+    );
+
+    // ==================================
+    // 6️⃣ SAVE PAYMENT RECORD
+    // ==================================
+    const paymentRecord = {
+      amount: session.amount_total / 100,
+      transactionId: session.payment_intent,
+      currency: session.currency,
+      customerEmail: session.customer_email,
+      parcelName: session.metadata.parcelName,
+      paymentStatus: session.payment_status,
+      paidAt: new Date(),
+      trackingId: trackingId,
+    };
+
+    await paymentCollection.insertOne(paymentRecord);
+
+    return res.send({
+      success: true,
+      trackingId,
+      paymentRecord,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send({ error: "Payment processing failed" });
+  }
+});
+
 
     // =================
     // Payment History
