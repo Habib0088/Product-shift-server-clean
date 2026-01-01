@@ -55,9 +55,14 @@ async function run() {
     await client.connect();
     console.log("Connected to MongoDB successfully!");
 
-    const db = client.db("Chellange_Hive");
-
+    const db = client.db("zap_shift");
+    const parcelsCollection = db.collection("parcels");
+    const paymentCollection = db.collection("payments");
     const usersCollection = db.collection("users");
+    const ridersCollection = db.collection("riders");
+    const trackingCollection = db.collection("tracking");
+
+    // {}}}}}}}}{}{}{}{}{}{}{}{}
 
     // Admin verify token
     const verifyAdmin = async (req, res, next) => {
