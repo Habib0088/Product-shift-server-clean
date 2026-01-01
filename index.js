@@ -439,7 +439,9 @@ async function run() {
 }
 
 run().catch(console.dir);
-module.exports = app;
+const serverless = require("serverless-http");
+module.exports = serverless(app);
+
 
 
 // app.listen(port, () => {

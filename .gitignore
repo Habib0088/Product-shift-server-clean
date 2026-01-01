@@ -3,3 +3,4 @@ node_modules
 
 firebase-adminsdk.json
 .vercel
+.env*.local
