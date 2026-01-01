@@ -9,7 +9,11 @@ const port = process.env.PORT || 3000;
 
 // Firebase Admin
 const admin = require("firebase-admin");
-const serviceAccount = require("./firebase-adminsdk.json");
+
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf8"
+);
+const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -78,6 +82,9 @@ async function run() {
     // =======================
     // Riders API
     // =======================
+    app.get("/", (req, res) => {
+      res.send("Server is running");
+    });
 
     app.delete("/riders/:id", async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
@@ -432,7 +439,9 @@ async function run() {
 }
 
 run().catch(console.dir);
+module.exports = app;
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+
+// app.listen(port, () => {
+//   console.log(`Server running on port ${port}`);
+// });
