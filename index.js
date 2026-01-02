@@ -138,6 +138,11 @@ async function run() {
     // =======================
     // Users API
     // =======================
+    app.get('/user',async(req,res)=>{
+      const {email}=req.query
+      const result=await usersCollection.findOne({email})
+      res.send(result)
+    })
 
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -439,10 +444,10 @@ async function run() {
 }
 
 run().catch(console.dir);
-const serverless = require("serverless-http");
-module.exports = serverless(app);
+// const serverless = require("serverless-http");
+// module.exports = serverless(app);
 
-
+app.listen(port)
 
 // app.listen(port, () => {
 //   console.log(`Server running on port ${port}`);
