@@ -56,7 +56,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    
     console.log("Connected to MongoDB successfully!");
 
     const db = client.db("zap_shift");
@@ -82,10 +82,9 @@ async function run() {
     // =======================
     // Riders API
     // =======================
-    app.get("/", (req, res) => {
-      res.send("Server is running");
-    });
-
+     app.get("/", (req, res) => {
+      res.send("Rideshift Server is Running 🚀");
+    })
     app.delete("/riders/:id", async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
       const result = await ridersCollection.deleteOne(filter);
@@ -444,11 +443,6 @@ async function run() {
 }
 
 run().catch(console.dir);
-// const serverless = require("serverless-http");
-// module.exports = serverless(app);
 
-app.listen(port)
-
-// app.listen(port, () => {
-//   console.log(`Server running on port ${port}`);
-// });
+// app.listen(port)
+module.exports = app;
