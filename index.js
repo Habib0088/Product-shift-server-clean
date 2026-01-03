@@ -1,8 +1,14 @@
 const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
-
+const Stripe = require("stripe")(process.env.STRIPE_SECRET);
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
+// ====================
+// STRIPE IMPORT
+// ====================
+
+
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -56,7 +62,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    
     console.log("Connected to MongoDB successfully!");
 
     const db = client.db("zap_shift");
@@ -65,8 +70,6 @@ async function run() {
     const usersCollection = db.collection("users");
     const ridersCollection = db.collection("riders");
     const trackingCollection = db.collection("tracking");
-
-    // {}}}}}}}}{}{}{}{}{}{}{}{}
 
     // Admin verify token
     const verifyAdmin = async (req, res, next) => {
@@ -82,9 +85,9 @@ async function run() {
     // =======================
     // Riders API
     // =======================
-     app.get("/", (req, res) => {
+    app.get("/", (req, res) => {
       res.send("Rideshift Server is Running 🚀");
-    })
+    });
     app.delete("/riders/:id", async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
       const result = await ridersCollection.deleteOne(filter);
@@ -137,11 +140,11 @@ async function run() {
     // =======================
     // Users API
     // =======================
-    app.get('/user',async(req,res)=>{
-      const {email}=req.query
-      const result=await usersCollection.findOne({email})
-      res.send(result)
-    })
+    app.get("/user", async (req, res) => {
+      const { email } = req.query;
+      const result = await usersCollection.findOne({ email });
+      res.send(result);
+    });
 
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -188,6 +191,8 @@ async function run() {
     app.post("/create-checkout-session", async (req, res) => {
       try {
         const paymentInfo = req.body;
+        console.log(req.body);
+
         const amount = parseInt(paymentInfo.cost) * 100;
 
         const session = await stripe.checkout.sessions.create({
@@ -444,5 +449,4 @@ async function run() {
 
 run().catch(console.dir);
 
-// app.listen(port)
 module.exports = app;

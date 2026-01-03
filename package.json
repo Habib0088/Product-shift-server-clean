@@ -18,10 +18,9 @@
     "firebase-admin": "^13.6.0",
     "mongodb": "^7.0.0",
     "serverless-http": "^4.0.0",
-    "stripe": "^20.0.0"
+    "stripe": "^20.1.0"
   },
- "engines": {
-  "node": "24.x"
-}
-
+  "engines": {
+    "node": "24.x"
+  }
 }
