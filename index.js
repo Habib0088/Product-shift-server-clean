@@ -4,18 +4,12 @@ const cors = require("cors");
 const Stripe = require("stripe")(process.env.STRIPE_SECRET);
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
-// ====================
-// STRIPE IMPORT
-// ====================
-
-
-
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Firebase Admin
 const admin = require("firebase-admin");
-
+const e = require("express");
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
   "utf8"
 );
@@ -116,6 +110,16 @@ async function run() {
         res.send(userResult);
       }
     });
+// =========================================================
+app.get("/test-stripe", (req, res) => {
+  try {
+    if (!Stripe) throw new Error("Stripe not defined");
+    res.send({ success: true, message: "Stripe is defined ✅" });
+  } catch (err) {
+    res.status(500).send({ success: false, message: err.message });
+  }
+});
+// =========================================================
 
     app.post("/riders", async (req, res) => {
       const riders = req.body;
