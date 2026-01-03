@@ -116,7 +116,9 @@ app.get("/test-stripe", (req, res) => {
     if (!Stripe) throw new Error("Stripe not defined");
     res.send({ success: true, message: "Stripe is defined ✅" });
   } catch (err) {
-    res.status(500).send({ success: false, message: err.message });
+    // 
+    console.log(err);
+    
   }
 });
 // =========================================================
@@ -453,4 +455,7 @@ app.get("/test-stripe", (req, res) => {
 
 run().catch(console.dir);
 
-module.exports = app;
+// module.exports = app;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
