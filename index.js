@@ -121,6 +121,9 @@ app.get("/test-stripe", (req, res) => {
     
   }
 });
+app.get("/show",async()=>{
+  res.send("showing")
+})
 // =========================================================
 
     app.post("/riders", async (req, res) => {
