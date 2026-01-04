@@ -1,7 +1,7 @@
 const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
-const Stripe = require("stripe")(process.env.STRIPE_SECRET);
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
@@ -9,7 +9,6 @@ const port = process.env.PORT || 3000;
 
 // Firebase Admin
 const admin = require("firebase-admin");
-const e = require("express");
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
   "utf8"
 );
@@ -54,8 +53,27 @@ const client = new MongoClient(uri, {
   },
 });
 
+// ----------------------------
+// Helper Functions
+// ----------------------------
+function generateTrackingIdSecure() {
+  return "TRK-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+}
+
+let trackingCollection; // define here for logTracking
+async function logTracking(trackingId, status) {
+  if (!trackingCollection) return;
+  await trackingCollection.insertOne({
+    trackingId,
+    status,
+    createdAt: new Date(),
+  });
+}
+
+// ----------------------------
 async function run() {
   try {
+  
     console.log("Connected to MongoDB successfully!");
 
     const db = client.db("zap_shift");
@@ -63,7 +81,7 @@ async function run() {
     const paymentCollection = db.collection("payments");
     const usersCollection = db.collection("users");
     const ridersCollection = db.collection("riders");
-    const trackingCollection = db.collection("tracking");
+    trackingCollection = db.collection("tracking"); // assign here
 
     // Admin verify token
     const verifyAdmin = async (req, res, next) => {
@@ -82,6 +100,7 @@ async function run() {
     app.get("/", (req, res) => {
       res.send("Rideshift Server is Running 🚀");
     });
+
     app.delete("/riders/:id", async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
       const result = await ridersCollection.deleteOne(filter);
@@ -110,22 +129,26 @@ async function run() {
         res.send(userResult);
       }
     });
-// =========================================================
-app.get("/test-stripe", (req, res) => {
-  try {
-    if (!Stripe) throw new Error("Stripe not defined");
-    res.send({ success: true, message: "Stripe is defined ✅" });
-  } catch (err) {
-    // 
-    console.log(err);
-    
-  }
-});
-app.get("/show",async()=>{
-  res.send("showing")
-})
-// =========================================================
 
+    // =========================
+    // Stripe Test
+    // =========================
+    app.get("/test-stripe", (req, res) => {
+      try {
+        if (!stripe) throw new Error("Stripe not defined");
+        res.send({ success: true, message: "Stripe is defined ✅" });
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
+    app.get("/show", async (req, res) => {
+      res.send("showing");
+    });
+
+    // =======================
+    // Riders CRUD
+    // =======================
     app.post("/riders", async (req, res) => {
       const riders = req.body;
       riders.status = "pending";
@@ -162,7 +185,6 @@ app.get("/show",async()=>{
 
     app.post("/users", async (req, res) => {
       const user = req.body;
-
       user.role = "user";
       user.createdAt = new Date();
 
@@ -200,7 +222,6 @@ app.get("/show",async()=>{
     app.post("/create-checkout-session", async (req, res) => {
       try {
         const paymentInfo = req.body;
-        console.log(req.body);
 
         const amount = parseInt(paymentInfo.cost) * 100;
 
@@ -234,7 +255,7 @@ app.get("/show",async()=>{
     });
 
     // ===========================
-    // PAYMENT SUCCESS (CLEAN)
+    // PAYMENT SUCCESS
     // ===========================
     app.patch("/payment-success", async (req, res) => {
       const sessionId = req.query.session_id;
@@ -257,7 +278,6 @@ app.get("/show",async()=>{
         }
 
         let trackingId = parcel.trackingId;
-
         if (!trackingId) {
           trackingId = generateTrackingIdSecure();
           await parcelsCollection.updateOne(
@@ -309,7 +329,8 @@ app.get("/show",async()=>{
           paymentRecord,
         });
       } catch (err) {
-        res.status(500).send({ error: "Payment processing failed" });
+        console.error("PAYMENT SUCCESS ERROR:", err.message);
+        res.status(500).send({ error: err.message });
       }
     });
 
@@ -351,7 +372,7 @@ app.get("/show",async()=>{
       const filter = { _id: new ObjectId(req.params.id) };
       const { trackingId, deliveryStatus, riderId } = req.body;
 
-      await parcelsCollection.updateOne(filter, {
+      const result = await parcelsCollection.updateOne(filter, {
         $set: { deliveryStatus },
       });
 
@@ -364,7 +385,7 @@ app.get("/show",async()=>{
         );
       }
 
-      res.send({ success: true });
+      res.send(result);
     });
 
     app.patch("/parcels/:id", async (req, res) => {
@@ -374,7 +395,7 @@ app.get("/show",async()=>{
         { _id: new ObjectId(parcelId) },
         {
           $set: {
-            deliveryStatus: "delivery-assigned",
+            deliveryStatus: "delivery-man-assigned",
             riderId,
             riderName,
             riderEmail,
@@ -396,6 +417,7 @@ app.get("/show",async()=>{
       const parcel = req.body;
       parcel.createdAt = new Date();
 
+      parcel.deliveryStatus = "pending-pickup";
       const result = await parcelsCollection.insertOne(parcel);
 
       const trackingId = generateTrackingIdSecure();
@@ -453,12 +475,13 @@ app.get("/show",async()=>{
       res.send(result);
     });
   } finally {
+    // Optionally: await client.close();
   }
 }
 
 run().catch(console.dir);
 
-// module.exports = app;
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`Server running on port ${port}`);
+// });
+module.exports = app;
